@@ -22,12 +22,18 @@
 #define PRESENTATION_BLANK_LEDS_MS 300
 #define PRESENTATION_BIT_TIME_MS 2000
 
+#define CHECKED_RUN(run) if ((run) < 0) { \
+    TRACE("Error running %s!", #run); \
+    CleanUp(); \
+    exit(EXIT_FAILURE); \
+}
+
 const int kButtonPins[NUM_BUTTONS] = {
-    1, 2, 3, 4
+    25, 10, 17, 18
 };
 
 const int kLedPins[NUM_LEDS] = {
-    5, 6, 7, 8
+    24, 22, 23, 27
 };
 
 typedef enum CalculatorPhase {
@@ -90,7 +96,8 @@ static app_state_t app_state = {
     .phase = ARG_INPUT_FIRST,
     .should_run = true,
     .io = {},
-    .args = {}
+    .args = {},
+    .operation = ADDITION,
 };
 
 // ------------------------------
@@ -287,6 +294,7 @@ static void RunStateMachine() {
 calculator_phase_t ProcessArgInputState(const int arg_num) {
     app_state.args.cur_arg = (size_t) arg_num;
     app_state.args.arg_bit_idx = 0;
+    app_state.args.args[arg_num] = 0;
     DisableAllLeds();
 
     app_state.io.callbacks[0] = ArgInputButton0Callback;
@@ -328,7 +336,7 @@ calculator_phase_t ProcessDisplayInputState() {
             Signal0Bit();
         }
 
-        usleep(PRESENTATION_BLANK_LEDS_MS * 1000);
+        CHECKED_RUN(usleep(PRESENTATION_BLANK_LEDS_MS * 1000));
     }
 
     ShineLeds();
@@ -451,6 +459,10 @@ uint64_t Calculate() {
         case MULTIPLICATION:
             return app_state.args.args[0] * app_state.args.args[1];
         case DIVISION:
+            if (app_state.args.args[1] == 0) {
+                TRACE("Division by zero!\n");
+                return 0;
+            }
             return app_state.args.args[0] / app_state.args.args[1];
         case LAST_OPERATION:
             CleanUp();
@@ -464,10 +476,10 @@ uint64_t Calculate() {
 void ShineLeds() {
     for (size_t i = 0; i < PRESENTATION_SHINE_RETRIES; i++) {
         EnableAllLeds();
-        usleep(PRESENTATION_SHINE_TIME_MS * 1000);
+        CHECKED_RUN(usleep(PRESENTATION_SHINE_TIME_MS * 1000));
 
         DisableAllLeds();
-        usleep(PRESENTATION_SHINE_BLANK_TIME_MS * 1000);
+        CHECKED_RUN(usleep(PRESENTATION_SHINE_BLANK_TIME_MS * 1000));
     }
 }
 
@@ -477,7 +489,7 @@ void Signal0Bit() {
     EnableLed(2);
     EnableLed(3);
 
-    usleep(PRESENTATION_BIT_TIME_MS * 1000);
+    CHECKED_RUN(usleep(PRESENTATION_BIT_TIME_MS * 1000));
 
     DisableAllLeds();
 }
@@ -488,7 +500,7 @@ void Signal1Bit() {
     EnableLed(0);
     EnableLed(1);
 
-    usleep(PRESENTATION_BIT_TIME_MS * 1000);
+    CHECKED_RUN(usleep(PRESENTATION_BIT_TIME_MS * 1000));
 
     DisableAllLeds();
 }
