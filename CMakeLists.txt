@@ -31,3 +31,5 @@ add_executable(linsw main.c)
 target_include_directories(linsw PRIVATE ${PERIPHERY_INCLUDE_DIRS})
 
 target_link_libraries(linsw ${PERIPHERY_LIBRARIES})
+
+install(TARGETS linsw DESTINATION bin)
