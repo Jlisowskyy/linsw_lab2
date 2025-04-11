@@ -316,6 +316,14 @@ calculator_phase_t ProcessArgInputState(const int arg_num) {
     app_state.io.callbacks[2] = ArgInputButton2Callback;
     app_state.io.callbacks[3] = ArgInputButton3Callback;
 
+    /* dispolay help for first button */
+    if (arg_num == 0) {
+        TRACE("Button 1: proceed to next phase\n"
+              "Button 2: add 0 bit\n"
+              "Button 3: add 1 bit\n"
+              "Button 4: remove last added bit\n");
+    }
+
     PollButtons();
 
     return arg_num == 0 ? ARG_INPUT_SECOND : ARG_INPUT_OPERATION;
@@ -329,6 +337,10 @@ calculator_phase_t ProcessOpInputState() {
     app_state.io.callbacks[1] = OpInputButton1Callback;
     app_state.io.callbacks[2] = NULL;
     app_state.io.callbacks[3] = NULL;
+
+    /* display help */
+    TRACE("Button 1: proceed to next phase\n"
+          "Button 2: pick next operation\n");
 
     PollButtons();
 
@@ -602,7 +614,6 @@ int main(void) {
     InitializeButtons();
     InitializeLeds();
     EnableAllLeds();
-    TestPoll();
     RunStateMachine();
     TRACE("Goodbye, that was a good time...\n");
 
