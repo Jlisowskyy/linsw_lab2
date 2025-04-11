@@ -319,9 +319,9 @@ calculator_phase_t ProcessArgInputState(const int arg_num) {
     /* dispolay help for first button */
     if (arg_num == 0) {
         TRACE("Button 1: proceed to next phase\n"
-              "Button 2: add 0 bit\n"
-              "Button 3: add 1 bit\n"
-              "Button 4: remove last added bit\n");
+            "Button 2: add 0 bit\n"
+            "Button 3: add 1 bit\n"
+            "Button 4: remove last added bit\n");
     }
 
     PollButtons();
@@ -340,7 +340,12 @@ calculator_phase_t ProcessOpInputState() {
 
     /* display help */
     TRACE("Button 1: proceed to next phase\n"
-          "Button 2: pick next operation\n");
+        "Button 2: pick next operation\n"
+        "Available operations:\n"
+        "0 - addition\n"
+        "1 - subtraction\n"
+        "2 - multiplication\n"
+        "3 - division\n");
 
     PollButtons();
 
