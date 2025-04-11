@@ -7,7 +7,7 @@
 #include <time.h>  // For clock_gettime()
 #include <sys/time.h>
 
-#include "gpio.h"
+#include <gpio.h>
 
 // ------------------------------
 // defines
