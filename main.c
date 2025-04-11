@@ -67,6 +67,7 @@ typedef struct IoState {
     button_callback_t callbacks[NUM_BUTTONS];
 
     struct timespec last_press_time[NUM_BUTTONS];
+    gpio_edge_t last_press_edge[NUM_BUTTONS];
 } io_state_t;
 
 typedef struct Args {
@@ -164,7 +165,7 @@ static void DisplayLast4Bits();
 
 static void DisplayOperation();
 
-static bool IsButtonDebounced(size_t button_idx);
+static bool ShouldTrigger(size_t button_idx, gpio_edge_t edge);
 
 // ------------------------------
 // Test functions
@@ -366,7 +367,7 @@ calculator_phase_t ProcessDisplayInputState() {
     return LAST_PHASE;
 }
 
-bool IsButtonDebounced(size_t button_idx) {
+bool ShouldTrigger(size_t button_idx, gpio_edge_t edge) {
     struct timespec current_time;
     if (clock_gettime(CLOCK_MONOTONIC, &current_time) < 0) {
         TRACE("Error getting current time for debounce\n");
@@ -380,12 +381,22 @@ bool IsButtonDebounced(size_t button_idx) {
 
     app_state.io.last_press_time[button_idx] = current_time;
 
-    if (last_press->tv_sec == 0 || diff_ms >= DEBOUNCE_THRESHOLD_MS) {
-        return true;
+    // TRACE("Button time last pressed: %ld ms\n", diff_ms);
+
+    gpio_edge_t prev_edge = app_state.io.last_press_edge[button_idx];
+    app_state.io.last_press_edge[button_idx] = edge;
+
+    if (last_press->tv_sec != 0 && diff_ms < DEBOUNCE_THRESHOLD_MS) {
+        TRACE("Button %lu debounced (time since last press: %ld ms)\n", button_idx, diff_ms);
+        return false;
     }
 
-    TRACE("Button %lu debounced (time since last press: %ld ms)\n", button_idx, diff_ms);
-    return false;
+    if (prev_edge != GPIO_EDGE_RISING && prev_edge != GPIO_EDGE_NONE) {
+        TRACE("Button %lu debounced (prev edge: %d)\n", button_idx, prev_edge);
+        return false;
+    }
+
+    return true;
 }
 
 void PollButtons() {
@@ -410,12 +421,8 @@ void PollButtons() {
                     exit(EXIT_FAILURE);
                 }
 
-                const bool button_pressed = event == GPIO_EDGE_FALLING ? true : false;
-
-                if (button_pressed && app_state.io.callbacks[i] != NULL) {
-                    if (IsButtonDebounced(i)) {
-                        should_poll = app_state.io.callbacks[i]();
-                    }
+                if (ShouldTrigger(i, event) && app_state.io.callbacks[i] != NULL) {
+                    should_poll = app_state.io.callbacks[i]();
                 }
             }
         }
