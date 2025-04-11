@@ -163,7 +163,7 @@ static void DisplayOperation();
 // ------------------------------
 
 static bool TestPollCallback() {
-    TRACE("Button pressed!");
+    TRACE("Button pressed!\n");
     return true;
 }
 
@@ -367,6 +367,7 @@ void PollButtons() {
 
         for (size_t i = 0; i < NUM_BUTTONS; i++) {
             if (app_state.io.fds[i].revents & (POLLIN | POLLPRI)) {
+
                 gpio_edge_t event;
                 if (gpio_read_event(app_state.io.buttons[i], &event, NULL) < 0) {
                     TRACE("Error reading event from button_%lu: %s\n", i, gpio_errmsg(app_state.io.buttons[i]));
@@ -557,6 +558,8 @@ int main(void) {
     TRACE("Welcome to binary calculator project for linsw - lab2!\n");
     InitializeButtons();
     InitializeLeds();
+    EnableAllLeds();
+    TestPoll();
     RunStateMachine();
     TRACE("Goodbye, that was a good time...\n");
 
