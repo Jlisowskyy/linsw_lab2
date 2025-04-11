@@ -326,17 +326,26 @@ calculator_phase_t ProcessDisplayInputState() {
 
     ShineLeds();
 
-    // TODO: end on last 1
-    for (size_t cur = 0; cur < 64; cur++) {
-        const uint64_t bit = result & ((uint64_t) 1 << cur);
-
-        if (bit) {
-            Signal1Bit();
-        } else {
-            Signal0Bit();
+    if (result == 0) {
+        Signal0Bit();
+        CHECKED_RUN(usleep(PRESENTATION_BLANK_LEDS_MS * 1000));
+    } else {
+        int msb = 63;
+        while (msb >= 0 && !(result & ((uint64_t)1 << msb))) {
+            msb--;
         }
 
-        CHECKED_RUN(usleep(PRESENTATION_BLANK_LEDS_MS * 1000));
+        for (int cur = msb; cur >= 0; cur--) {
+            const uint64_t bit = result & ((uint64_t)1 << cur);
+
+            if (bit) {
+                Signal1Bit();
+            } else {
+                Signal0Bit();
+            }
+
+            CHECKED_RUN(usleep(PRESENTATION_BLANK_LEDS_MS * 1000));
+        }
     }
 
     ShineLeds();
