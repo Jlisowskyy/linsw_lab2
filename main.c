@@ -349,6 +349,7 @@ calculator_phase_t ProcessOpInputState() {
 
 calculator_phase_t ProcessDisplayInputState() {
     const uint64_t result = Calculate();
+    TRACE("Result: %lu\n", result);
 
     ShineLeds();
 
@@ -399,12 +400,12 @@ bool ShouldTrigger(size_t button_idx, gpio_edge_t edge) {
     app_state.io.last_press_edge[button_idx] = edge;
 
     if (last_press->tv_sec != 0 && diff_ms < DEBOUNCE_THRESHOLD_MS) {
-        TRACE("Button %lu debounced (time since last press: %ld ms)\n", button_idx, diff_ms);
+        // TRACE("Button %lu debounced (time since last press: %ld ms)\n", button_idx, diff_ms);
         return false;
     }
 
     if (prev_edge != GPIO_EDGE_RISING && prev_edge != GPIO_EDGE_NONE) {
-        TRACE("Button %lu debounced (prev edge: %d)\n", button_idx, prev_edge);
+        // TRACE("Button %lu debounced (prev edge: %d)\n", button_idx, prev_edge);
         return false;
     }
 
@@ -518,16 +519,20 @@ bool OpInputButton1Callback() {
 uint64_t Calculate() {
     switch (app_state.operation) {
         case ADDITION:
+            TRACE("Calculating addition: %lu + %lu\n", app_state.args.args[0], app_state.args.args[1]);
             return app_state.args.args[0] + app_state.args.args[1];
         case SUBTRACTION:
+            TRACE("Calculating subtraction: %lu - %lu\n", app_state.args.args[0], app_state.args.args[1]);
             return app_state.args.args[0] - app_state.args.args[1];
         case MULTIPLICATION:
+            TRACE("Calculating multiplication: %lu * %lu\n", app_state.args.args[0], app_state.args.args[1]);
             return app_state.args.args[0] * app_state.args.args[1];
         case DIVISION:
             if (app_state.args.args[1] == 0) {
                 TRACE("Division by zero!\n");
                 return 0;
             }
+            TRACE("Calculating division: %lu / %lu\n", app_state.args.args[0], app_state.args.args[1]);
             return app_state.args.args[0] / app_state.args.args[1];
         case LAST_OPERATION:
             CleanUp();
