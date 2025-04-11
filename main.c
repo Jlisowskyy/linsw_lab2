@@ -4,6 +4,8 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>  // For clock_gettime()
+#include <sys/time.h>
 
 #include "gpio.h"
 
@@ -21,6 +23,8 @@
 #define PRESENTATION_SHINE_BLANK_TIME_MS 150
 #define PRESENTATION_BLANK_LEDS_MS 300
 #define PRESENTATION_BIT_TIME_MS 2000
+
+#define DEBOUNCE_THRESHOLD_MS 200
 
 #define CHECKED_RUN(run) if ((run) < 0) { \
     TRACE("Error running %s!", #run); \
@@ -61,6 +65,8 @@ typedef struct IoState {
 
     struct pollfd fds[NUM_BUTTONS];
     button_callback_t callbacks[NUM_BUTTONS];
+
+    struct timespec last_press_time[NUM_BUTTONS];
 } io_state_t;
 
 typedef struct Args {
@@ -158,6 +164,8 @@ static void DisplayLast4Bits();
 
 static void DisplayOperation();
 
+static bool IsButtonDebounced(size_t button_idx);
+
 // ------------------------------
 // Test functions
 // ------------------------------
@@ -181,6 +189,11 @@ static void TestPoll() {
 
 void InitializeButtons() {
     TRACE("Initializing buttons...\n");
+
+    for (size_t i = 0; i < NUM_BUTTONS; i++) {
+        app_state.io.last_press_time[i].tv_sec = 0;
+        app_state.io.last_press_time[i].tv_nsec = 0;
+    }
 
     for (size_t i = 0; i < NUM_BUTTONS; i++) {
         app_state.io.buttons[i] = gpio_new();
@@ -331,12 +344,12 @@ calculator_phase_t ProcessDisplayInputState() {
         CHECKED_RUN(usleep(PRESENTATION_BLANK_LEDS_MS * 1000));
     } else {
         int msb = 63;
-        while (msb >= 0 && !(result & ((uint64_t)1 << msb))) {
+        while (msb >= 0 && !(result & ((uint64_t) 1 << msb))) {
             msb--;
         }
 
         for (int cur = msb; cur >= 0; cur--) {
-            const uint64_t bit = result & ((uint64_t)1 << cur);
+            const uint64_t bit = result & ((uint64_t) 1 << cur);
 
             if (bit) {
                 Signal1Bit();
@@ -353,6 +366,28 @@ calculator_phase_t ProcessDisplayInputState() {
     return LAST_PHASE;
 }
 
+bool IsButtonDebounced(size_t button_idx) {
+    struct timespec current_time;
+    if (clock_gettime(CLOCK_MONOTONIC, &current_time) < 0) {
+        TRACE("Error getting current time for debounce\n");
+        return false;
+    }
+
+    struct timespec *last_press = &app_state.io.last_press_time[button_idx];
+
+    long diff_ms = (current_time.tv_sec - last_press->tv_sec) * 1000 +
+                   (current_time.tv_nsec - last_press->tv_nsec) / 1000000;
+
+    app_state.io.last_press_time[button_idx] = current_time;
+
+    if (last_press->tv_sec == 0 || diff_ms >= DEBOUNCE_THRESHOLD_MS) {
+        return true;
+    }
+
+    TRACE("Button %lu debounced (time since last press: %ld ms)\n", button_idx, diff_ms);
+    return false;
+}
+
 void PollButtons() {
     bool should_poll = true;
 
@@ -367,7 +402,6 @@ void PollButtons() {
 
         for (size_t i = 0; i < NUM_BUTTONS; i++) {
             if (app_state.io.fds[i].revents & (POLLIN | POLLPRI)) {
-
                 gpio_edge_t event;
                 if (gpio_read_event(app_state.io.buttons[i], &event, NULL) < 0) {
                     TRACE("Error reading event from button_%lu: %s\n", i, gpio_errmsg(app_state.io.buttons[i]));
@@ -379,7 +413,9 @@ void PollButtons() {
                 const bool button_pressed = event == GPIO_EDGE_FALLING ? true : false;
 
                 if (button_pressed && app_state.io.callbacks[i] != NULL) {
-                    should_poll = app_state.io.callbacks[i]();
+                    if (IsButtonDebounced(i)) {
+                        should_poll = app_state.io.callbacks[i]();
+                    }
                 }
             }
         }
